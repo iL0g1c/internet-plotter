@@ -24,29 +24,28 @@ def generateHopMap(hopLocations, outputFile="test_route.html"):
         print("No hop locations to plot")
         return
     cityGroups = defaultdict(list)
-    for idx, hop in enumerate(hopLocations):
-        cityGroups[hop['label']].append((idx + 1, hop))
+    for hop in hopLocations:
+        cityGroups[hop['label']].append(hop)
+
     avg_lat = sum([hop['lat'] for hop in hopLocations]) / len(hopLocations)
     avg_lon = sum([hop['lon'] for hop in hopLocations]) / len(hopLocations)
     tracerouteMap = folium.Map(location=[avg_lat, avg_lon], zoom_start=4)
 
     for city, hops in cityGroups.items():
-        lat = hops[0][1]['lat']
-        lon = hops[0][1]['lon']
+        lat = hops[0]['lat']
+        lon = hops[0]['lon']
 
-        hopNumbers = [str(hop[0]) for hop in hops]
-        ipAddresses = [hop[1]['ip'] for hop in hops]
-        popupText = f"City: {city}<br>Hops: {hopNumbers[0]}-{hopNumbers[-1]}<br>IPs: {', '.join(ipAddresses)}"
-
+        popupText = f"City: {city}<br>"
+        popupText += "<br>".join([f"Hop {hop['hop_number']}: {hop['ip']}" for hop in hops])
         folium.Marker(
             location=[lat, lon],
             popup=popupText,
-            tooltip=f"Hops {hopNumbers[0]}-{hopNumbers[-1]} in {city}",
+            tooltip=f"Hops {hops[0]['hop_number']} - {hops[-1]['hop_number']} in {city}",
             icon=folium.Icon(color="green", icon="info-sign")
         ).add_to(tracerouteMap)
 
-    hopCoordinates = [[hop['lat'], hop['lon']] for hop in hopLocations]
-    folium.PolyLine(hopCoordinates, color="blue", weight=2.5, opacity=1).add_to(tracerouteMap)
+    cityCoordinates = [(hops[0]['lat'], hops[0]['lon']) for hops in cityGroups.values()]
+    folium.PolyLine(cityCoordinates, color="blue", weight=2.5, opacity=1).add_to(tracerouteMap)
     tracerouteMap.save(outputFile)
     print(f"Map saved to {outputFile}")
 
@@ -61,7 +60,7 @@ def main():
     print("Geolocating IP addresses...")
     hopLocations = []
     previousIP = None
-    for snd, rcv in result:
+    for hop_number, (snd, rcv) in enumerate(result, start=1):
         ip = rcv.src
         if ip == previousIP:
             continue
@@ -70,6 +69,7 @@ def main():
 
         if lat and lon:
             hopLocations.append({
+                "hop_number": hop_number,
                 "ip": ip,
                 "lat": lat,
                 "lon": lon,
