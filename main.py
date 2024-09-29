@@ -51,7 +51,7 @@ def generateHopMap(hopLocations, outputFile="test_route.html"):
 
 def main():
     # get route
-    target = "www.google.com"
+    target = "www.chinadaily.com.cn"
     print(f"Tracing route to '{target}'...")
     result, _ = traceroute(target)
     print("Done.")
@@ -60,16 +60,22 @@ def main():
     print("Geolocating IP addresses...")
     hopLocations = []
     previousIP = None
-    for hop_number, (snd, rcv) in enumerate(result, start=1):
+    seenLocations = set()
+    for hopNumber, (snd, rcv) in enumerate(result, start=1):
         ip = rcv.src
-        if ip == previousIP:
-            continue
-        previousIP = ip
         lat, lon, label = geolocateIP(ip) # get location for ip address
+
+        locationId = (ip, label)
+
+        if ip == previousIP or locationId in seenLocations:
+            continue
+
+        previousIP = ip
+        seenLocations.add(locationId)
 
         if lat and lon:
             hopLocations.append({
-                "hop_number": hop_number,
+                "hop_number": hopNumber,
                 "ip": ip,
                 "lat": lat,
                 "lon": lon,
@@ -77,6 +83,7 @@ def main():
             })
     print("Done.")
     print(f"Found {len(hopLocations)} unique IP addresses.")
+    print(hopLocations)
     print("Generating map...")
     generateHopMap(hopLocations, "traceroute_map.html")
     print("Done.")
